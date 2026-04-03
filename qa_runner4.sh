@@ -32,7 +32,11 @@ for MUNKI_NAME in $OPTIONAL_APPS; do
     echo "[1] Force Install..."
 
     sudo plutil -replace managed_installs -xml "<array><string>$MUNKI_NAME</string></array>" "$MANIFEST"
-    sudo plutil -remove managed_uninstalls "$MANIFEST" 2>/dev/null || true
+
+    # Key nur entfernen, wenn er existiert
+    if plutil -extract managed_uninstalls xml1 "$MANIFEST" >/dev/null 2>&1; then
+        sudo plutil -remove managed_uninstalls "$MANIFEST"
+    fi
 
     sudo managedsoftwareupdate --installonly
 
@@ -60,7 +64,11 @@ for MUNKI_NAME in $OPTIONAL_APPS; do
     echo "[3] Force Remove..."
 
     sudo plutil -replace managed_uninstalls -xml "<array><string>$MUNKI_NAME</string></array>" "$MANIFEST"
-    sudo plutil -remove managed_installs "$MANIFEST" 2>/dev/null || true
+
+    # Key nur entfernen, wenn er existiert
+    if plutil -extract managed_installs xml1 "$MANIFEST" >/dev/null 2>&1; then
+        sudo plutil -remove managed_installs "$MANIFEST"
+    fi
 
     sudo managedsoftwareupdate
 
