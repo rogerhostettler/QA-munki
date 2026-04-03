@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MANIFEST="/Library/Managed Installs/manifests/DGKY2HSXJ1GP"
+MANIFEST="/Library/Managed Installs/manifests/testclient"
 APP_LIST=~/QA-munki/app_list.txt
 
 echo "===== QA MULTI TEST START ====="
