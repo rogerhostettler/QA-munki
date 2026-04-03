@@ -7,7 +7,7 @@ BACKUP="$TARGET_MANIFEST.backup"
 
 echo "===== QA MULTI TEST START ====="
 
-# Backup des SelfServeManifest
+# Backup SelfServeManifest
 if [ -f "$TARGET_MANIFEST" ]; then
     sudo cp "$TARGET_MANIFEST" "$BACKUP"
 fi
@@ -21,29 +21,22 @@ if [ -z "$OPTIONAL_APPS" ]; then
 fi
 
 # ------------------------
-# SelfServeManifest aktualisieren
+# SelfServeManifest vorbereiten (managed_installs + managed_uninstalls)
 # ------------------------
-INSTALL_ARRAY=""
+# managed_installs auf leeres Array setzen
+sudo plutil -replace managed_installs -xml "<array></array>" "$TARGET_MANIFEST"
+
+# Alle optional_apps in managed_installs einfügen
+INDEX=0
 for APP in $OPTIONAL_APPS; do
-    INSTALL_ARRAY+="    <string>$APP</string>
-"
+    sudo plutil -insert managed_installs.$INDEX -string "$APP" "$TARGET_MANIFEST" 2>/dev/null || true
+    INDEX=$((INDEX+1))
 done
 
-sudo tee "$TARGET_MANIFEST" > /dev/null <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>managed_installs</key>
-	<array>
-$INSTALL_ARRAY	</array>
-	<key>managed_uninstalls</key>
-	<array/>
-</dict>
-</plist>
-EOF
+# managed_uninstalls vorbereiten
+sudo plutil -replace managed_uninstalls -xml "<array></array>" "$TARGET_MANIFEST"
 
-echo "✅ SelfServeManifest aktualisiert mit Apps aus optional_installs"
+echo "✅ SelfServeManifest aktualisiert mit optional_installs"
 
 # ------------------------
 # QA-Test: Install + Remove
@@ -81,7 +74,7 @@ for MUNKI_NAME in $OPTIONAL_APPS; do
     echo "[3] Force Remove..."
     sudo plutil -replace managed_uninstalls -xml "<array><string>$MUNKI_NAME</string></array>" "$TARGET_MANIFEST"
 
-    # Key nur entfernen, wenn er existiert
+    # Key managed_installs nur entfernen, wenn vorhanden
     if plutil -extract managed_installs xml1 "$TARGET_MANIFEST" >/dev/null 2>&1; then
         sudo plutil -remove managed_installs "$TARGET_MANIFEST"
     fi
