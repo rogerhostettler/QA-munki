@@ -5,11 +5,18 @@ BACKUP="$MANIFEST.backup"
 
 echo "===== QA MULTI TEST START ====="
 
-# Backup Manifest
-sudo cp "$MANIFEST" "$BACKUP"
+# Backup Manifest, falls vorhanden
+if [ -f "$MANIFEST" ]; then
+    sudo cp "$MANIFEST" "$BACKUP"
+fi
 
-# Apps aus optional_installs auslesen
-OPTIONAL_APPS=$(plutil -extract optional_installs xml1 -o - "$MANIFEST" | xmllint --xpath "//string/text()" -)
+# optional_installs aus Manifest auslesen
+OPTIONAL_APPS=$(plutil -extract optional_installs xml1 -o - "$MANIFEST" | xmllint --xpath "//string/text()" - 2>/dev/null)
+
+if [ -z "$OPTIONAL_APPS" ]; then
+    echo "⚠️ Keine optional_installs gefunden!"
+    exit 1
+fi
 
 for MUNKI_NAME in $OPTIONAL_APPS; do
     APP_PATH="/Applications/$MUNKI_NAME.app"
@@ -23,7 +30,6 @@ for MUNKI_NAME in $OPTIONAL_APPS; do
     # INSTALL ERZWINGEN
     # ------------------------
     echo "[1] Force Install..."
-
     sudo tee "$MANIFEST" > /dev/null <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
@@ -44,7 +50,7 @@ for MUNKI_NAME in $OPTIONAL_APPS; do
 </plist>
 EOF
 
-    sudo managedsoftwareupdate
+    sudo managedsoftwareupdate --installonly
 
     if [ ! -d "$APP_PATH" ]; then
         echo "❌ INSTALL FEHLGESCHLAGEN: $MUNKI_NAME"
@@ -68,7 +74,6 @@ EOF
     # REMOVE ERZWINGEN
     # ------------------------
     echo "[3] Force Remove..."
-
     sudo tee "$MANIFEST" > /dev/null <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
@@ -100,8 +105,12 @@ EOF
 
 done
 
-# Original Manifest wiederherstellen
-sudo mv "$BACKUP" "$MANIFEST"
+# Backup wiederherstellen
+if [ -f "$BACKUP" ]; then
+    echo ""
+    echo "Stelle originales Manifest wieder her..."
+    sudo mv "$BACKUP" "$MANIFEST"
+fi
 
 echo ""
 echo "===== QA MULTI TEST DONE ====="
